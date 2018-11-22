@@ -25,6 +25,8 @@
  * - Addition of query parameter ?force_cache_refresh which when set to value of BC_REFRESH_STRING
  *   will cause a cache rebuilt of the current url.
  * - Ensure $batcache->permalink contains correct protocol (http/https)
+ * - Send max-age=0 and s-maxage=<timeout> instead of maxage
+ * - Ensure proper content type is set for /feed/ if none has been set
  */
 if ( is_readable( dirname( __FILE__ ) . '/batcache-stats.php' ) )
         require_once dirname( __FILE__ ) . '/batcache-stats.php';
@@ -586,7 +588,7 @@ if ( isset( $batcache->cache['time'] ) && // We have cache
         // Use the batcache save time for Last-Modified so we can issue "304 Not Modified" but don't clobber a cached Last-Modified header.
         if ( $batcache->cache_control && !isset($batcache->cache['headers']['Last-Modified'][0]) ) {
                 header( 'Last-Modified: ' . gmdate( 'D, d M Y H:i:s', $batcache->cache['time'] ) . ' GMT', true );
-                header('Cache-Control: max-age=' . ($batcache->cache['max_age'] - time() + $batcache->cache['time']) . ', must-revalidate', true);
+                header( 'Cache-Control: max-age=0, s-maxage=' . ( $batcache->cache['max_age'] - time() + $batcache->cache['time'] ) . ', must-revalidate', true );
         }
 
         // Add some debug info just before </head>
