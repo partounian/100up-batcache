@@ -16,7 +16,7 @@
  * - Fallback for apache_response_headers on nginx to allow header caching on nginx
  * - Setting header X-BTCache-Served=1 for all batcache served requests
  * - Increase $batcache->seconds to 300 to account for lower traffic sites
- * - Addition of wp-login.php, ms-files.php to cache excepmtion
+ * - Addition of wp-login.php, ms-files.php to cache excemption
  * - Ensure only GET/HEAD requests are cached
  * - Addition of $batcache->noskip_cookies to define an array of cookie names which 
  *   will enable the caching even if other cookies indicate a cache excempt
@@ -27,12 +27,18 @@
  * - Ensure $batcache->permalink contains correct protocol (http/https)
  * - Send max-age=0 and s-maxage=<timeout> instead of maxage
  * - Ensure proper content type is set for /feed/ if none has been set
+ * - Track run-time batcache_stats in global variable $bc_stats
+ * - Addition of define VARIANT_FOR_RESPONSE_COOKIES to add a variant for response cookies
+ *   IMPORTANT: this only makes sense if the cookies are not including unique ids per pageload 
  */
 if ( is_readable( dirname( __FILE__ ) . '/batcache-stats.php' ) )
         require_once dirname( __FILE__ ) . '/batcache-stats.php';
 
 if ( !function_exists( 'batcache_stats' ) ) {
-        function batcache_stats( $name, $value, $num = 1, $today = FALSE, $hour = FALSE ) { }
+    function batcache_stats( $name, $value, $num = 1, $today = FALSE, $hour = FALSE ) { 
+        global $bc_stats;
+        $bc_stats[$name] = $value;
+    }
 }
 
 // nananananananananananananananana BATCACHE!!!
@@ -61,25 +67,41 @@ function vary_cache_on_function($function) {
         if ( preg_match('/include|require|echo|(?<!s)print|dump|export|open|sock|unlink|`|eval/i', $function) )
                 die('Illegal word in variant determiner.');
 
-        if ( !preg_match('/\$_/', $function) )
+        if ( !preg_match('/\$_/', $function) && 'return vary_cache_on_response_cookies();' != $function )
                 die('Variant determiner should refer to at least one $_ variable.');
 
         $batcache->add_variant($function);
+}
+
+
+/**
+ * Function to define a variant for cookies sent in response.
+ */
+if ( ! function_exists( 'vary_cache_on_response_cookies' ) ) {
+    function vary_cache_on_response_cookies() {
+        global $batcache;
+
+        if ( ! isset( $batcache->cache['headers'] ) || ! isset( $batcache->cache['headers']['set-cookie'] ) ) {
+            return false;
+        }
+        $variant = md5( serialize( $batcache->cache['headers']['set-cookie'] ) );
+        return $variant;    
+    }
 }
 
 /**
  * This allows nginx headers to be cached.
  */
 if ( ! function_exists( 'apache_response_headers' ) ) {
-	function apache_response_headers() {
-		$arh     = array();
-		$headers = headers_list();
-		foreach ( $headers as $header ) {
-			$header                        = explode( ":", $header );
-			$arh[ array_shift( $header ) ] = trim( implode( ":", $header ) );
-		}
-		return $arh;
-	}
+        function apache_response_headers() {
+                $arh     = array();
+                $headers = headers_list();
+                foreach ( $headers as $header ) {
+                        $header                        = explode( ":", $header );
+                        $arh[ array_shift( $header ) ] = trim( implode( ":", $header ) );
+                }
+                return $arh;
+        }
 }
 
 class batcache {
@@ -88,8 +110,8 @@ class batcache {
 
         var $remote  =    0; // Zero disables sending buffers to remote datacenters (req/sec is never sent)
 
-        var $times   =    2; // Only batcache a page after it is accessed this many times... (two or more)
-        var $seconds =  300; // ...in this many seconds (zero to ignore this and use batcache immediately)
+        var $times   =    0; // Only batcache a page after it is accessed this many times... (two or more)
+        var $seconds =  270; // ...in this many seconds (zero to ignore this and use batcache immediately)
 
         var $group   = 'batcache'; // Name of memcached group. You can simulate a cache flush by changing this.
 
@@ -114,7 +136,7 @@ class batcache {
 
         var $noskip_cookies = array( 'wordpress_test_cookie' ); // Names of cookies - if they exist and the cache would normally be bypassed, don't bypass it
         var $skip_cookies = array(); // Names of cookies - if they exist and the cache will be bypassed
-
+        var $add_variant_for_response_cookies = false; // instead of bypassing the cache allow a cache variant for response cookies when true
         var $query = '';
         var $genlock = false;
         var $do = false;
@@ -250,8 +272,8 @@ class batcache {
                 }
 
                 foreach ( $this->cache['headers'] as $header => $values ) {
-                        // Do not cache if cookies were set
-                        if ( strtolower( $header ) === 'set-cookie' ) {
+                        // Do not cache if cookies were set unless we have a variant
+                        if ( strtolower( $header ) === 'set-cookie' && false === $this->add_variant_for_response_cookies ) {
                                 wp_cache_delete( "{$this->url_key}_genlock", $this->group );
                                 return $output;
                         }
@@ -321,11 +343,12 @@ class batcache {
         }
 
         function add_debug_just_cached() {
+                $seconds_ago = time() - $this->cache['time'];
                 $generation = $this->cache['timer'];
                 $bytes = strlen( serialize( $this->cache ) );
                 $html = <<<HTML
 <!--
-        generated in $generation seconds
+        generated in $generation seconds $seconds_ago seconds ago
         $bytes bytes batcached for {$this->max_age} seconds
 -->
 
@@ -395,6 +418,14 @@ if ( ! empty( $GLOBALS['HTTP_RAW_POST_DATA'] ) || ! empty( $_POST ) ||
         return;
 }
 
+// Allow defining of add_variant_for_response_cookies through define
+if ( defined( 'VARIANT_FOR_RESPONSE_COOKIES' ) && true === VARIANT_FOR_RESPONSE_COOKIES ) {
+    $batcache->add_variant_for_response_cookies = true;
+    if ( false !== vary_cache_on_response_cookies() ) {
+        vary_cache_on_function( 'return vary_cache_on_response_cookies();' ); 
+    }
+}    
+
 // Allow defining a set of cookie names which can ALWAYS be cached.
 if ( defined( 'ALWAYS_CACHE_COOKIES' ) ) {
         $batcache->noskip_cookies = array_merge( $batcache->noskip_cookies, (array) ALWAYS_CACHE_COOKIES );
@@ -412,7 +443,7 @@ if ( is_array( $_COOKIE) && ! empty( $_COOKIE ) ) {
                         $bc_has_no_skip = true;
                 }
                 if ( in_array( $batcache->cookie, $batcache->skip_cookies ) || substr( $batcache->cookie, 0, 2 ) == 'wp' || substr( $batcache->cookie, 0, 9 ) == 'wordpress' || substr( $batcache->cookie, 0, 14 ) == 'comment_author' ) {
-                        $bc_has_cookie_excepmt = true;
+                        $bc_has_cookie_excempt = true;
                 }
         }
         if ( false === $bc_has_no_skip && true === $bc_has_cookie_excempt ) {
@@ -498,6 +529,8 @@ $batcache->generate_keys();
 // Get the batcache
 $batcache->cache = wp_cache_get($batcache->key, $batcache->group);
 if ( true === $batcache_force_refresh ) {
+        wp_cache_delete( $batcache->key, $batcache->group );
+        $batcache->use_stale = false;
         $batcache->do = true;
 } else if ( isset( $batcache->cache['version'] ) && $batcache->cache['version'] != $batcache->url_version ) {
         // Always refresh the cache if a newer version is available.
