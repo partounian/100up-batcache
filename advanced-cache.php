@@ -299,7 +299,7 @@ class batcache {
                         if ( !isset($this->cache['headers']['Last-Modified']) )
                                 header( 'Last-Modified: ' . gmdate( 'D, d M Y H:i:s', $this->cache['time'] ) . ' GMT', true );
                         if ( !isset($this->cache['headers']['Cache-Control']) )
-                                header("Cache-Control: max-age=$this->max_age, must-revalidate", false);
+                                header("Cache-Control: max-age=0, s-maxage=$this->max_age, must-revalidate", false);
                 }
 
                 $this->do_headers( $this->headers );
