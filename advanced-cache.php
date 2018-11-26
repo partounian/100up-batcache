@@ -421,9 +421,7 @@ if ( ! empty( $GLOBALS['HTTP_RAW_POST_DATA'] ) || ! empty( $_POST ) ||
 // Allow defining of add_variant_for_response_cookies through define
 if ( defined( 'VARIANT_FOR_RESPONSE_COOKIES' ) && true === VARIANT_FOR_RESPONSE_COOKIES ) {
     $batcache->add_variant_for_response_cookies = true;
-    if ( false !== vary_cache_on_response_cookies() ) {
-        vary_cache_on_function( 'return vary_cache_on_response_cookies();' ); 
-    }
+    vary_cache_on_function( 'return vary_cache_on_response_cookies();' ); 
 }    
 
 // Allow defining a set of cookie names which can ALWAYS be cached.
