@@ -444,7 +444,7 @@ if ( is_array( $_COOKIE) && ! empty( $_COOKIE ) ) {
 		        $bc_has_cookie_excempt = true;
 	        }
         }
-        if ( false === $bc_has_no_skip && true === $bc_has_cookie_excempt ) {
+        if ( (false === $bc_has_no_skip && true === $bc_has_cookie_excempt) || true === $bc_has_cookie_excempt ) {
                 batcache_stats( 'batcache', 'cookie_skip' );
                 return;
         }
