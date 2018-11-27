@@ -437,14 +437,14 @@ $bc_has_no_skip = false;
 $bc_has_cookie_excempt = false;
 if ( is_array( $_COOKIE) && ! empty( $_COOKIE ) ) {
         foreach ( array_keys( $_COOKIE ) as $batcache->cookie ) {
-                if ( ! in_array( $batcache->cookie, $batcache->noskip_cookies ) ) {
-                        $bc_has_no_skip = true;
-                }
-                if ( in_array( $batcache->cookie, $batcache->skip_cookies ) || substr( $batcache->cookie, 0, 2 ) == 'wp' || substr( $batcache->cookie, 0, 9 ) == 'wordpress' || substr( $batcache->cookie, 0, 14 ) == 'comment_author' ) {
-                        $bc_has_cookie_excempt = true;
-                }
+	        if ( in_array( $batcache->cookie, $batcache->noskip_cookies ) ) {
+		        $bc_has_no_skip = true;
+	        }
+	        if ( in_array( $batcache->cookie, $batcache->skip_cookies ) || substr( $batcache->cookie, 0, 2 ) == 'wp' || substr( $batcache->cookie, 0, 9 ) == 'wordpress' || substr( $batcache->cookie, 0, 14 ) == 'comment_author' ) {
+		        $bc_has_cookie_excempt = true;
+	        }
         }
-        if ( false === $bc_has_no_skip && true === $bc_has_cookie_excempt ) {
+        if ( (false === $bc_has_no_skip && true === $bc_has_cookie_excempt) || true === $bc_has_cookie_excempt ) {
                 batcache_stats( 'batcache', 'cookie_skip' );
                 return;
         }
@@ -513,8 +513,13 @@ $batcache->keys = array(
         'extra' => $batcache->unique
 );
 
-if ( $batcache->is_ssl() )
+if ( $batcache->is_ssl() ) {
         $batcache->keys['ssl'] = true;
+}
+else {
+        $batcache->keys['ssl'] = false;
+}
+	
 
 // Recreate the permalink from the URL
 $batcache->permalink = 'http' . ( $batcache->keys['ssl'] === true ? 's' : '' ) . '://' . $batcache->keys['host'] . $batcache->keys['path'] . ( isset($batcache->keys['query']['p']) ? "?p=" . $batcache->keys['query']['p'] : '' );
