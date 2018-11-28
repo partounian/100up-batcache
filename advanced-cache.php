@@ -112,7 +112,7 @@ class batcache {
 
         var $remote  =    0; // Zero disables sending buffers to remote datacenters (req/sec is never sent)
 
-        var $times   =    0; // Only batcache a page after it is accessed this many times... (two or more)
+        var $times   =    1; // Only batcache a page after it is accessed this many times... (zero to disable, one or more to enable)
         var $seconds =  270; // ...in this many seconds (zero to ignore this and use batcache immediately)
 
         var $group   = 'batcache'; // Name of memcached group. You can simulate a cache flush by changing this.
@@ -566,13 +566,21 @@ if ( true === $batcache_force_refresh ) {
         wp_cache_delete( $batcache->key, $batcache->group );
         $batcache->use_stale = false;
         $batcache->do = true;
-} else if ( isset( $batcache->cache['version'] ) && $batcache->cache['version'] != $batcache->url_version ) {
+} 
+else if ( isset( $batcache->cache['version'] ) && $batcache->cache['version'] != $batcache->url_version ) {
         // Always refresh the cache if a newer version is available.
         $batcache->do = true;
-} else if ( $batcache->seconds < 1 || $batcache->times < 2 ) {
-        // Are we only caching frequently-requested pages?
+} 
+/**
+ * 
+ * $batache->seconds less than 1 or $batcache->times < 1 effectively
+ * disables page caching
+ */
+
+else if ( $batcache->seconds < 1 || $batcache->times < 1 ) {
         $batcache->do = true;
-} else {
+} 
+else {
         // No batcache item found, or ready to sample traffic again at the end of the batcache life?
         if ( !is_array($batcache->cache) || time() >= $batcache->cache['time'] + $batcache->max_age - $batcache->seconds ) {
                 wp_cache_add($batcache->req_key, 0, $batcache->group);
