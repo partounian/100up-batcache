@@ -31,6 +31,7 @@
  * - Track run-time batcache_stats in global variable $bc_stats
  * - Addition of define VARIANT_FOR_RESPONSE_COOKIES to add a variant for response cookies
  *   IMPORTANT: this only makes sense if the cookies are not including unique ids per pageload 
+ * - Ensure to use TEST_COOKIE if defined and fallback to wordpress_test_cookie
  */
 if ( is_readable( dirname( __FILE__ ) . '/batcache-stats.php' ) )
         require_once dirname( __FILE__ ) . '/batcache-stats.php';
@@ -135,7 +136,7 @@ class batcache {
 
         var $cancel = false; // Change this to cancel the output buffer. Use batcache_cancel();
 
-        var $noskip_cookies = array( 'wordpress_test_cookie' ); // Names of cookies - if they exist and the cache would normally be bypassed, don't bypass it
+        var $noskip_cookies = array(); // Names of cookies - if they exist and the cache would normally be bypassed, don't bypass it
         var $skip_cookies = array(); // Names of cookies - if they exist and the cache will be bypassed
         var $add_variant_for_response_cookies = false; // instead of bypassing the cache allow a cache variant for response cookies when true
         var $query = '';
@@ -143,6 +144,11 @@ class batcache {
         var $do = false;
 
         function __construct( $settings ) {
+                if ( defined( 'TEST_COOKIE' ) ) {
+                    $this->noskip_cookies[] = TEST_COOKIE;
+                } else {
+                    $this->noskip_cookies[] = 'wordpress_test_cookie';
+                }
                 if ( is_array( $settings ) ) foreach ( $settings as $k => $v )
                         $this->$k = $v;
         }
@@ -438,11 +444,6 @@ $bc_has_no_skip = false;
 $bc_has_cookie_exempt = false;
 if ( is_array( $_COOKIE) && ! empty( $_COOKIE ) ) {
         foreach ( array_keys( $_COOKIE ) as $batcache->cookie ) {
-                // just don't evaluate this cookie
-                if ( $batcache->cookie == "wordpress_test_cookie" ) {
-                        continue;
-                }
-
                 // set no_skip if the cookie is in the no skip list
 	        if ( in_array( $batcache->cookie, $batcache->noskip_cookies ) ) {
                         $bc_has_no_skip = true;
