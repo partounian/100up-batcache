@@ -16,16 +16,17 @@
  * - Fallback for apache_response_headers on nginx to allow header caching on nginx
  * - Setting header X-BTCache-Served=1 for all batcache served requests
  * - Increase $batcache->seconds to 300 to account for lower traffic sites
- * - Addition of wp-login.php, ms-files.php to cache excemption
+ * - Addition of wp-login.php, ms-files.php to cache exception
  * - Ensure only GET/HEAD requests are cached
  * - Addition of $batcache->noskip_cookies to define an array of cookie names which 
- *   will enable the caching even if other cookies indicate a cache excempt
+ *   will enable the caching even if other cookies indicate a cache exception
  * - Addition of define ALWAYS_CACHE_COOKIES to easily define $batcache->noskip_cookies
  * - Addition of define NEVER_CACHE_COOKIES to easily define $batcache->skip_cookies
  * - Addition of query parameter ?force_cache_refresh which when set to value of BC_REFRESH_STRING
  *   will cause a cache rebuilt of the current url.
  * - Ensure $batcache->permalink contains correct protocol (http/https)
- * - Send max-age=0 and s-maxage=<timeout> instead of maxage
+ * - Send max-age=0 and s-maxage=<timeout> instead of maxage. This is to ensure browsers
+ *   do not cache pages but other caching proxies (Varnish, Squid, CDNs, etc) do.
  * - Ensure proper content type is set for /feed/ if none has been set
  * - Track run-time batcache_stats in global variable $bc_stats
  * - Addition of define VARIANT_FOR_RESPONSE_COOKIES to add a variant for response cookies
@@ -434,17 +435,46 @@ if ( defined( 'NEVER_CACHE_COOKIES' ) ) {
 }
 // Never batcache when cookies indicate a cache-exempt visitor.
 $bc_has_no_skip = false;
-$bc_has_cookie_excempt = false;
+$bc_has_cookie_exempt = false;
 if ( is_array( $_COOKIE) && ! empty( $_COOKIE ) ) {
         foreach ( array_keys( $_COOKIE ) as $batcache->cookie ) {
+                // just don't evaluate this cookie
+                if ( $batcache->cookie == "wordpress_test_cookie" ) {
+                        continue;
+                }
+
+                // set no_skip if the cookie is in the no skip list
 	        if ( in_array( $batcache->cookie, $batcache->noskip_cookies ) ) {
-		        $bc_has_no_skip = true;
-	        }
-	        if ( in_array( $batcache->cookie, $batcache->skip_cookies ) || substr( $batcache->cookie, 0, 2 ) == 'wp' || substr( $batcache->cookie, 0, 9 ) == 'wordpress' || substr( $batcache->cookie, 0, 14 ) == 'comment_author' ) {
-		        $bc_has_cookie_excempt = true;
+                        $bc_has_no_skip = true;
+                        continue; // no reason to continue evaluating
+                }
+
+                // set skip if cookie is in the skip list
+	        if ( in_array( $batcache->cookie, $batcache->skip_cookies ) ) {
+                        $bc_has_cookie_exempt = true;
+                        continue; // no reason to continue evaluating
+                }
+                
+                // match on wp but why?
+                if (substr( $batcache->cookie, 0, 2 )  == 'wp' || 
+                    // match on wordpress existing at the start of the cookie name
+                    // such as wordpress_logged_in
+                    substr( $batcache->cookie, 0, 9 )  == 'wordpress' ||
+                    // match on comment_auth
+                    substr( $batcache->cookie, 0, 14 ) == 'comment_author' ) {
+		        $bc_has_cookie_exempt = true;
 	        }
         }
-        if ( false === $bc_has_no_skip && true === $bc_has_cookie_excempt ) {
+        /**
+         * if bc_has_no_skip is true then we saw a cookie that says we should never skip
+         * the cache and we never return here
+         * 
+         * bc_has_no_skip wins over bc_has_cookie_exempt
+         * 
+         * if bc_has_no_skip is false but bc_has_cookie_exempt is true then 
+         * we always return here (meaning we're going in for at least a partial page render)
+         */
+        if ( (false === $bc_has_no_skip && true === $bc_has_cookie_exempt) ) {
                 batcache_stats( 'batcache', 'cookie_skip' );
                 return;
         }
