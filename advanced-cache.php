@@ -474,8 +474,6 @@ if ( is_array( $_COOKIE) && ! empty( $_COOKIE ) ) {
          * if bc_has_no_skip is false but bc_has_cookie_exempt is true then 
          * we always return here (meaning we're going in for at least a partial page render)
          */
-        // if no_skip is true 
-        // 
         if ( (false === $bc_has_no_skip && true === $bc_has_cookie_exempt) ) {
                 batcache_stats( 'batcache', 'cookie_skip' );
                 return;
