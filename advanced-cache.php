@@ -121,7 +121,7 @@ class batcache {
 
         var $vary    = array(); // Array of functions for create_function. The return value is added to $unique above.
 
-        var $headers = array( 'X-BTCache-Served' => 1 ); // Add headers here as name=>value or name=>array(values). These will be sent with every response from the cache.
+        var $headers = array( 'X-BTCache-Served' => "Yes", 'X-BTCache' => "MISS" ); // Add headers here as name=>value or name=>array(values). These will be sent with every response from the cache.
 
         var $cache_redirects = false; // Set true to enable redirect caching.
         var $redirect_status = false; // This is set to the response code during a redirect.
@@ -670,6 +670,10 @@ if ( isset( $batcache->cache['time'] ) && // We have cache
         if ( $batcache->debug ) {
                 $batcache->add_debug_from_cache();
         }
+
+        // we're about to serve the request from cache,
+        // output a cache hit header
+        $batcache->headers['X-BTCache'] = "HIT";
 
         $batcache->do_headers( $batcache->headers, $batcache->cache['headers'] );
 
