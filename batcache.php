@@ -3,7 +3,7 @@
 Plugin name: Batcache Manager
 Plugin URI: http://wordpress.org/extend/plugins/batcache/
 Description: This optional plugin improves Batcache.
-Author: Andy Skelton
+Author: Andy Skelton, nubo
 Author URI: http://andyskelton.com/
 Version: 1.2
 */
@@ -22,14 +22,17 @@ add_action('clean_post_cache', 'batcache_post', 10, 2);
 //add_action('wp_set_comment_status', 'batcache_comment');
 //add_action('edit_comment',          'batcache_comment');
 
+// Regen category/tags index
+add_action('clean_term_cache', 'batcache_term', 10, 2);
+
 function batcache_post($post_id, $post = null) {
 	global $batcache;
 
 	// Get the post for backwards compatibility with earlier versions of WordPress
 	if ( ! $post ) {
-		$post = get_post( $post_id );	
+		$post = get_post( $post_id );
 	}
-	
+
 	if ( ! $post || $post->post_type == 'revision' || ! in_array( get_post_status($post_id), array( 'publish', 'trash' ) ) )
 		return;
 
@@ -37,6 +40,12 @@ function batcache_post($post_id, $post = null) {
 	batcache_clear_url( $home );
 	batcache_clear_url( $home . 'feed/' );
 	batcache_clear_url( get_permalink($post_id) );
+}
+
+function batcache_term($ids, $taxonomy) {
+	foreach($ids as $id) {
+		batcache_clear_url( get_term_link((int)$id, $taxonomy) );
+	}
 }
 
 function batcache_clear_url($url) {
