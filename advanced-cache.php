@@ -3,7 +3,7 @@
  * Plugin Name: BatCache
  * Description: Batcache uses Memcached to store and serve rendered pages.
  * Version:     1.2.1 
- * Author:      andy, orensol, markjaquith, vnsavage, batmoo, yoavf, tott, 10up 
+ * Author:      andy, orensol, markjaquith, vnsavage, batmoo, yoavf, tott, 10up, nubo
  * Author URI:  https://github.com/10up/10up-batcache 
  * License:     GPLv2 or later
  */
@@ -582,7 +582,7 @@ else if ( $batcache->seconds < 1 || $batcache->times < 1 ) {
 } 
 else {
         // No batcache item found, or ready to sample traffic again at the end of the batcache life?
-        if ( !is_array($batcache->cache) || time() >= $batcache->cache['time'] + $batcache->max_age - $batcache->seconds ) {
+        if ( !is_array($batcache->cache) || time() >= $batcache->cache['time'] + $batcache->['max_age'] - $batcache->seconds ) {
                 wp_cache_add($batcache->req_key, 0, $batcache->group);
                 $batcache->requests = wp_cache_incr($batcache->req_key, 1, $batcache->group);
 
